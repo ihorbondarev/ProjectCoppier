@@ -60,8 +60,17 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
 
             var backupFolder = string.IsNullOrWhiteSpace(settings.BackupFolder)
                 ? Path.Combine(Path.GetTempPath(), "projectcloner-backups")
-                : settings.BackupFolder;
-            Directory.CreateDirectory(backupFolder);
+                : PathUtil.Expand(settings.BackupFolder);
+            try
+            {
+                Directory.CreateDirectory(backupFolder);
+            }
+            catch (Exception ex)
+            {
+                log.Warning($"DB backup skipped: cannot create backup folder '{backupFolder}': {ex.Message}");
+                return false;
+            }
+            log.Info($"Backup folder: {backupFolder}");
             var outFile = Path.Combine(backupFolder, $"{databaseName}_{host}.sql");
 
             var env = new Dictionary<string, string> { ["MYSQL_PWD"] = settings.Password };

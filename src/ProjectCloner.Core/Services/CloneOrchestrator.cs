@@ -39,61 +39,66 @@ public sealed class CloneOrchestrator
     public async Task<CloneResult> RunAsync(CloneRequest request, AppSettings settings,
         IProgress<ProgressReport>? log = null, CancellationToken ct = default)
     {
-        var result = new CloneResult { TargetPath = request.TargetPath };
+        var result = new CloneResult();
         try
         {
+            // Expand ~, env vars and resolve to absolute so terminal-style paths work from the GUI too.
+            var sourcePath = PathUtil.Expand(request.SourcePath);
+            var targetPath = PathUtil.Expand(request.TargetPath);
+            result.TargetPath = targetPath;
+
             var targetNamespace = request.TargetNamespace
-                ?? new DirectoryInfo(request.TargetPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)).Name;
+                ?? new DirectoryInfo(targetPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)).Name;
 
             // --- validations ---
-            if (!Directory.Exists(request.SourcePath))
-                return Fail(result, $"Source path does not exist: {request.SourcePath}", log);
-            if (Directory.Exists(request.TargetPath) && Directory.EnumerateFileSystemEntries(request.TargetPath).Any())
-                return Fail(result, $"Target already exists and is not empty: {request.TargetPath}", log);
-            if (!await _git.IsRepositoryAsync(request.SourcePath, ct))
+            if (!Directory.Exists(sourcePath))
+                return Fail(result, $"Source path does not exist: {sourcePath}", log);
+            if (Directory.Exists(targetPath) && Directory.EnumerateFileSystemEntries(targetPath).Any())
+                return Fail(result, $"Target already exists and is not empty: {targetPath}", log);
+            if (!await _git.IsRepositoryAsync(sourcePath, ct))
                 return Fail(result, "Source is not a git repository.", log);
 
             // --- 1. clean working tree (protect uncommitted work) ---
             // This guarantees the source tree equals committed master, so the copy is already clean —
             // no reset/clean on the copy is needed (and would only fight the namespace replacement).
             log.Step("1/7 Checking source working tree…");
-            if (!await _git.IsCleanAsync(request.SourcePath, ct))
+            if (!await _git.IsCleanAsync(sourcePath, ct))
                 return Fail(result,
                     "Source has uncommitted changes. Commit or stash them first — aborted to protect your work.", log);
 
             // --- 2. update source ---
             log.Step("2/7 Updating source (checkout master + pull)…");
-            var checkout = await _git.CheckoutAsync(request.SourcePath, "master", log, ct);
+            var checkout = await _git.CheckoutAsync(sourcePath, "master", log, ct);
             if (!checkout.Success) return Fail(result, $"git checkout master failed: {checkout.Combined}", log);
-            var pull = await _git.PullAsync(request.SourcePath, BuildGitEnv(settings), log, ct);
+            var pull = await _git.PullAsync(sourcePath, BuildGitEnv(settings), log, ct);
             if (!pull.Success) return Fail(result, $"git pull failed: {pull.Combined}", log);
 
             // --- 3. copy with namespace replacement (excludes .git, node_modules, bin, obj) ---
             log.Step("3/7 Copying project (replacing namespace)…");
-            _copier.Copy(request.SourcePath, request.TargetPath, request.SourceNamespace, targetNamespace, log, ct);
+            _copier.Copy(sourcePath, targetPath, request.SourceNamespace, targetNamespace, log, ct);
 
             // --- optional MySQL backup (non-fatal), before the pipeline file is removed ---
             if (request.BackupDatabase)
             {
                 log.Step("Database backup (optional)…");
-                var backedUp = await _backup.TryBackupAsync(request.SourcePath, settings.Database, request.DatabaseName, log, ct);
+                var backedUp = await _backup.TryBackupAsync(sourcePath, settings.Database, request.DatabaseName, log, ct);
                 if (!backedUp)
                     result.Warnings.Add("Database backup was skipped (see log for details).");
             }
 
             // --- 4. remove bitbucket-pipelines.yml ---
             log.Step("4/7 Removing bitbucket-pipelines.yml…");
-            _cleaner.RemovePipelineFiles(request.TargetPath, log);
+            _cleaner.RemovePipelineFiles(targetPath, log);
 
             // --- 5. fresh git history ---
             log.Step("5/7 Initializing fresh git history…");
-            await _git.InitFreshAsync(request.TargetPath, request.CommitMessage, log, ct);
+            await _git.InitFreshAsync(targetPath, request.CommitMessage, log, ct);
 
             // --- 6. build gate ---
             if (request.RunBuilds)
             {
                 log.Step("6/7 Building clone (React + .NET)…");
-                var build = await _buildRunner.RunAsync(request.TargetPath, log, ct);
+                var build = await _buildRunner.RunAsync(targetPath, log, ct);
                 if (!build.Success)
                     return Fail(result, $"Build failed at: {build.FailedStep}. Aborted before pushing.", log);
             }
@@ -115,10 +120,10 @@ public sealed class CloneOrchestrator
             var repo = await _bitbucket.CreateRepositoryAsync(settings.Bitbucket, slug, log, ct);
             result.RepositoryUrl = repo.HtmlUrl;
 
-            await _git.AddRemoteAsync(request.TargetPath, "origin", repo.CloneUrl, log, ct);
+            await _git.AddRemoteAsync(targetPath, "origin", repo.CloneUrl, log, ct);
 
             var pushUrl = BuildAuthenticatedUrl(repo.CloneUrl, settings.Bitbucket);
-            var push = await _git.PushAsync(request.TargetPath, pushUrl, "master", log, ct);
+            var push = await _git.PushAsync(targetPath, pushUrl, "master", log, ct);
             if (!push.Success) return Fail(result, $"git push failed: {push.Combined}", log);
 
             result.Success = true;
@@ -165,10 +170,8 @@ public sealed class CloneOrchestrator
         var ssh = "ssh -o StrictHostKeyChecking=accept-new";
         if (!string.IsNullOrWhiteSpace(settings.SshKeyPath))
         {
-            var keyPath = settings.SshKeyPath.Trim();
-            if (keyPath.StartsWith('~'))
-                keyPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + keyPath[1..];
-            keyPath = keyPath.Replace('\\', '/'); // forward slashes are safe for ssh on all platforms
+            // forward slashes are safe for ssh on all platforms
+            var keyPath = PathUtil.Expand(settings.SshKeyPath).Replace('\\', '/');
             ssh += $" -i \"{keyPath}\" -o IdentitiesOnly=yes";
         }
         return new Dictionary<string, string> { ["GIT_SSH_COMMAND"] = ssh };
