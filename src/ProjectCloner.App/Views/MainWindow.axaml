@@ -3,72 +3,101 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:ProjectCloner.App.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="640"
+        mc:Ignorable="d" d:DesignWidth="860" d:DesignHeight="680"
         x:Class="ProjectCloner.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Width="820" Height="640" MinWidth="640" MinHeight="480"
+        Width="860" Height="680" MinWidth="680" MinHeight="520"
         Title="ProjectCloner">
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="16">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
 
-        <!-- Top bar -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12">
-            <TextBlock Grid.Column="0" Text="ProjectCloner" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
-            <Button Grid.Column="1" Content="Check for updates" Command="{Binding CheckUpdatesCommand}" Margin="0,0,8,0"/>
-            <Button Grid.Column="2" Content="Settings…" Click="OnOpenSettings"/>
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="2,0,2,16">
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock Classes="h1" Text="ProjectCloner"/>
+                <TextBlock Classes="subtitle" Text="Clone → clean → build gate → Bitbucket"/>
+            </StackPanel>
+            <Button Grid.Column="1" Classes="ghost" Content="Check for updates"
+                    Command="{Binding CheckUpdatesCommand}" Margin="0,0,8,0"/>
+            <Button Grid.Column="2" Classes="ghost" Content="⚙  Settings" Click="OnOpenSettings"/>
         </Grid>
 
-        <!-- Form -->
-        <StackPanel Grid.Row="1" Spacing="8">
-            <Grid ColumnDefinitions="140,*,Auto">
-                <TextBlock Grid.Column="0" Text="Source project" VerticalAlignment="Center"/>
-                <TextBox Grid.Column="1" Text="{Binding SourcePath}" PlaceholderText="Path to the source git repository"/>
-                <Button Grid.Column="2" Content="Browse…" Click="OnBrowseSource" Margin="8,0,0,0"/>
-            </Grid>
-            <Grid ColumnDefinitions="140,*,Auto">
-                <TextBlock Grid.Column="0" Text="Target folder" VerticalAlignment="Center"/>
-                <TextBox Grid.Column="1" Text="{Binding TargetPath}" PlaceholderText="Destination folder for the clone (must be empty)"/>
-                <Button Grid.Column="2" Content="Browse…" Click="OnBrowseTarget" Margin="8,0,0,0"/>
-            </Grid>
-            <Grid ColumnDefinitions="140,*">
-                <TextBlock Grid.Column="0" Text="Source namespace" VerticalAlignment="Center"/>
-                <TextBox Grid.Column="1" Text="{Binding SourceNamespace}" PlaceholderText="e.g. OldCompany.Web"/>
-            </Grid>
-            <Grid ColumnDefinitions="140,*">
-                <TextBlock Grid.Column="0" Text="Target namespace" VerticalAlignment="Center"/>
-                <TextBox Grid.Column="1" Text="{Binding TargetNamespace}" PlaceholderText="Optional — defaults to the target folder name"/>
-            </Grid>
+        <!-- Form card -->
+        <Border Grid.Row="1" Classes="card">
+            <StackPanel Spacing="10">
 
-            <StackPanel Orientation="Horizontal" Spacing="20" Margin="140,4,0,0">
-                <CheckBox Content="Dry run (no Bitbucket / push)" IsChecked="{Binding DryRun}"/>
-                <CheckBox Content="Run build gate" IsChecked="{Binding RunBuilds}"/>
-                <CheckBox Content="Backup database" IsChecked="{Binding BackupDatabase}"/>
+                <Grid ColumnDefinitions="150,*,Auto">
+                    <TextBlock Grid.Column="0" Classes="label" Text="Source project"/>
+                    <TextBox Grid.Column="1" Text="{Binding SourcePath}" PlaceholderText="Path to the source git repository"/>
+                    <Button Grid.Column="2" Classes="ghost" Content="Browse…" Click="OnBrowseSource" Margin="8,0,0,0"/>
+                </Grid>
+                <Grid ColumnDefinitions="150,*,Auto">
+                    <TextBlock Grid.Column="0" Classes="label" Text="Target folder"/>
+                    <TextBox Grid.Column="1" Text="{Binding TargetPath}" PlaceholderText="Destination folder for the clone (must be empty)"/>
+                    <Button Grid.Column="2" Classes="ghost" Content="Browse…" Click="OnBrowseTarget" Margin="8,0,0,0"/>
+                </Grid>
+                <Grid ColumnDefinitions="150,*">
+                    <TextBlock Grid.Column="0" Classes="label" Text="Source namespace"/>
+                    <TextBox Grid.Column="1" Text="{Binding SourceNamespace}" PlaceholderText="e.g. OldCompany.Web"/>
+                </Grid>
+                <Grid ColumnDefinitions="150,*">
+                    <TextBlock Grid.Column="0" Classes="label" Text="Target namespace"/>
+                    <TextBox Grid.Column="1" Text="{Binding TargetNamespace}" PlaceholderText="Optional — defaults to the target folder name"/>
+                </Grid>
+
+                <Border Height="1" Background="{StaticResource CardBorder}" Margin="0,6"/>
+
+                <StackPanel Orientation="Horizontal" Spacing="22">
+                    <CheckBox Content="Dry run (no Bitbucket / push)" IsChecked="{Binding DryRun}"/>
+                    <CheckBox Content="Run build gate" IsChecked="{Binding RunBuilds}"/>
+                    <CheckBox Content="Backup database" IsChecked="{Binding BackupDatabase}"/>
+                </StackPanel>
+
+                <Grid ColumnDefinitions="150,*" IsVisible="{Binding BackupDatabase}">
+                    <TextBlock Grid.Column="0" Classes="label" Text="Database name"/>
+                    <TextBox Grid.Column="1" Text="{Binding DatabaseName}"
+                             PlaceholderText="MySQL database to back up (host is read from the pipeline file)"/>
+                </Grid>
+
+                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
+                    <Button Classes="primary" Content="Clone &amp; Push" Command="{Binding CloneCommand}"/>
+                    <Button Classes="ghost" Content="Cancel" Command="{Binding CancelCommand}"/>
+                    <ProgressBar IsIndeterminate="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                                 Width="180" Height="4" VerticalAlignment="Center"/>
+                </StackPanel>
             </StackPanel>
-
-            <StackPanel Orientation="Horizontal" Spacing="8" Margin="140,4,0,0">
-                <Button Content="Clone &amp; Push" Command="{Binding CloneCommand}" Padding="16,6" FontWeight="Bold"/>
-                <Button Content="Cancel" Command="{Binding CancelCommand}" Padding="16,6"/>
-                <ProgressBar IsIndeterminate="{Binding IsBusy}" Width="160" Height="6" VerticalAlignment="Center"
-                             IsVisible="{Binding IsBusy}"/>
-            </StackPanel>
-        </StackPanel>
-
-        <!-- Log -->
-        <Border Grid.Row="2" Margin="0,12,0,0" BorderBrush="#333" BorderThickness="1" CornerRadius="4" Background="#161616">
-            <ScrollViewer Name="LogScroll" Padding="8">
-                <ItemsControl ItemsSource="{Binding Log}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:LogLine">
-                            <TextBlock Text="{Binding Message}" Foreground="{Binding Color}"
-                                       FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12"
-                                       TextWrapping="Wrap"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
         </Border>
 
-        <!-- Status -->
-        <TextBlock Grid.Row="3" Text="{Binding Status}" Margin="0,8,0,0" FontStyle="Italic" Opacity="0.8"/>
+        <!-- Log card -->
+        <Border Grid.Row="2" Classes="card" Margin="0,14,0,0" Padding="0">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Padding="16,12" BorderBrush="{StaticResource CardBorder}" BorderThickness="0,0,0,1">
+                    <TextBlock Classes="section" Text="OUTPUT LOG"/>
+                </Border>
+                <Border Background="{StaticResource LogBg}" CornerRadius="0,0,10,10">
+                    <ScrollViewer Name="LogScroll" Padding="16,10">
+                        <ItemsControl ItemsSource="{Binding Log}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:LogLine">
+                                    <TextBlock Text="{Binding Message}" Foreground="{Binding Color}"
+                                               FontFamily="Cascadia Code,JetBrains Mono,Consolas,Menlo,monospace"
+                                               FontSize="12" TextWrapping="Wrap" Margin="0,1"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <!-- Status bar -->
+        <Border Grid.Row="3" Margin="0,12,0,0" Padding="14,8" CornerRadius="6"
+                Background="{StaticResource CardBg}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                         Fill="{Binding IsBusy, Converter={x:Static vm:BoolBrushes.BusyOrIdle}}"/>
+                <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Opacity="0.85"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

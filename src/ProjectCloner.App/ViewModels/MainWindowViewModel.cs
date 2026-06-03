@@ -34,6 +34,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         SourcePath = _settings.SourceRootFolder;
         SourceNamespace = _settings.DefaultSourceNamespace;
+        DatabaseName = _settings.Database.DatabaseName; // default; overridable per run
     }
 
     [ObservableProperty] private string _sourcePath = string.Empty;
@@ -43,6 +44,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _dryRun = true;
     [ObservableProperty] private bool _runBuilds = true;
     [ObservableProperty] private bool _backupDatabase;
+    [ObservableProperty] private string _databaseName = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CloneCommand))]
@@ -62,6 +64,7 @@ public partial class MainWindowViewModel : ObservableObject
         _settings = _settingsStore.Load();
         if (string.IsNullOrEmpty(SourcePath)) SourcePath = _settings.SourceRootFolder;
         if (string.IsNullOrEmpty(SourceNamespace)) SourceNamespace = _settings.DefaultSourceNamespace;
+        if (string.IsNullOrEmpty(DatabaseName)) DatabaseName = _settings.Database.DatabaseName;
     }
 
     public AppSettings CurrentSettings => _settings;
@@ -87,7 +90,8 @@ public partial class MainWindowViewModel : ObservableObject
             TargetNamespace = string.IsNullOrWhiteSpace(TargetNamespace) ? null : TargetNamespace.Trim(),
             DryRun = DryRun,
             RunBuilds = RunBuilds,
-            BackupDatabase = BackupDatabase
+            BackupDatabase = BackupDatabase,
+            DatabaseName = string.IsNullOrWhiteSpace(DatabaseName) ? null : DatabaseName.Trim()
         };
 
         IsBusy = true;

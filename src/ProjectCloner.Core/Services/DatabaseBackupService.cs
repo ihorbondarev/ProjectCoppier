@@ -14,7 +14,7 @@ public interface IDatabaseBackupService
     /// (their schema is kept, rows are not). Never throws — returns false and logs a warning on any problem.
     /// </summary>
     Task<bool> TryBackupAsync(string sourceProjectPath, DatabaseSettings settings,
-        IProgress<ProgressReport>? log = null, CancellationToken ct = default);
+        string? databaseNameOverride = null, IProgress<ProgressReport>? log = null, CancellationToken ct = default);
 }
 
 /// <summary>Dumps a MySQL database via <c>mysqldump</c>, excluding the data of log/history tables.</summary>
@@ -29,11 +29,15 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
     public DatabaseBackupService(ProcessRunner runner) => _runner = runner;
 
     public async Task<bool> TryBackupAsync(string sourceProjectPath, DatabaseSettings settings,
-        IProgress<ProgressReport>? log = null, CancellationToken ct = default)
+        string? databaseNameOverride = null, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(settings.Username) || string.IsNullOrWhiteSpace(settings.DatabaseName))
+            var databaseName = !string.IsNullOrWhiteSpace(databaseNameOverride)
+                ? databaseNameOverride.Trim()
+                : settings.DatabaseName;
+
+            if (string.IsNullOrWhiteSpace(settings.Username) || string.IsNullOrWhiteSpace(databaseName))
             {
                 log.Warning("DB backup skipped: username/database not configured.");
                 return false;
@@ -58,7 +62,7 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
                 ? Path.Combine(Path.GetTempPath(), "projectcloner-backups")
                 : settings.BackupFolder;
             Directory.CreateDirectory(backupFolder);
-            var outFile = Path.Combine(backupFolder, $"{settings.DatabaseName}_{host}.sql");
+            var outFile = Path.Combine(backupFolder, $"{databaseName}_{host}.sql");
 
             var env = new Dictionary<string, string> { ["MYSQL_PWD"] = settings.Password };
             var port = settings.Port > 0 ? settings.Port : 3306;
@@ -71,8 +75,8 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
                 "--single-transaction", "--routines", "--triggers"
             };
             foreach (var table in tables)
-                dumpArgs.Add($"--ignore-table={settings.DatabaseName}.{table}");
-            dumpArgs.Add(settings.DatabaseName);
+                dumpArgs.Add($"--ignore-table={databaseName}.{table}");
+            dumpArgs.Add(databaseName);
 
             log.Step($"mysqldump → {outFile}");
             var main = await _runner.RunAsync("mysqldump", dumpArgs, backupFolder, env,
@@ -90,7 +94,7 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
             {
                 var schemaArgs = new List<string>
                 {
-                    "-h", host, "-P", port.ToString(), "-u", settings.Username, "--no-data", settings.DatabaseName
+                    "-h", host, "-P", port.ToString(), "-u", settings.Username, "--no-data", databaseName
                 };
                 schemaArgs.AddRange(tables);
 

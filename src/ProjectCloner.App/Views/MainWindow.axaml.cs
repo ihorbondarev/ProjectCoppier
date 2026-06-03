@@ -1,6 +1,9 @@
+using System.Collections.Specialized;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using ProjectCloner.App.ViewModels;
 
 namespace ProjectCloner.App.Views;
@@ -13,6 +16,24 @@ public partial class MainWindow : Window
     }
 
     private MainWindowViewModel? ViewModel => DataContext as MainWindowViewModel;
+
+    protected override void OnDataContextChanged(System.EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (ViewModel is { } vm)
+        {
+            vm.Log.CollectionChanged -= OnLogChanged;
+            vm.Log.CollectionChanged += OnLogChanged;
+        }
+    }
+
+    private void OnLogChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        // Auto-scroll the log to the newest line after layout settles.
+        Dispatcher.UIThread.Post(
+            () => LogScroll.Offset = new Vector(0, LogScroll.Extent.Height),
+            DispatcherPriority.Background);
+    }
 
     private async void OnBrowseSource(object? sender, RoutedEventArgs e)
     {

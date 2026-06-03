@@ -1,10 +1,91 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ProjectCloner.App.App"
-             RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             RequestedThemeVariant="Dark">
+
+    <Application.Resources>
+        <Color x:Key="AccentColor">#3B82F6</Color>
+        <Color x:Key="AccentColorHover">#2F6FE0</Color>
+        <Color x:Key="AccentColorPressed">#2861C9</Color>
+        <SolidColorBrush x:Key="AppBg" Color="#1B1C1F"/>
+        <SolidColorBrush x:Key="CardBg" Color="#26272B"/>
+        <SolidColorBrush x:Key="CardBorder" Color="#34353A"/>
+        <SolidColorBrush x:Key="LogBg" Color="#141518"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#9AA0A6"/>
+    </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
+
+        <Style Selector="Window">
+            <Setter Property="Background" Value="{StaticResource AppBg}"/>
+        </Style>
+
+        <!-- Card container -->
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{StaticResource CardBg}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="18"/>
+        </Style>
+
+        <!-- Typography -->
+        <Style Selector="TextBlock.h1">
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style Selector="TextBlock.subtitle">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+        </Style>
+
+        <!-- Inputs -->
+        <Style Selector="TextBox">
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+
+        <!-- Primary (accent) button -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{StaticResource AccentColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="20,9"/>
+        </Style>
+        <Style Selector="Button.primary /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentColor}"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentColorHover}"/>
+        </Style>
+        <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentColorPressed}"/>
+        </Style>
+
+        <!-- Secondary (ghost) button -->
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="14,8"/>
+        </Style>
+        <Style Selector="Button.ghost /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#30323A"/>
+        </Style>
     </Application.Styles>
 </Application>

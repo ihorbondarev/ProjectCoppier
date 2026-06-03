@@ -76,7 +76,7 @@ public sealed class CloneOrchestrator
             if (request.BackupDatabase)
             {
                 log.Step("Database backup (optional)…");
-                var backedUp = await _backup.TryBackupAsync(request.SourcePath, settings.Database, log, ct);
+                var backedUp = await _backup.TryBackupAsync(request.SourcePath, settings.Database, request.DatabaseName, log, ct);
                 if (!backedUp)
                     result.Warnings.Add("Database backup was skipped (see log for details).");
             }

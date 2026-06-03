@@ -3,62 +3,81 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:ProjectCloner.App.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="720"
+        mc:Ignorable="d" d:DesignWidth="580" d:DesignHeight="760"
         x:Class="ProjectCloner.App.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
-        Width="560" Height="720" WindowStartupLocation="CenterOwner"
+        Width="580" Height="760" WindowStartupLocation="CenterOwner"
         Title="Settings">
 
-    <Grid RowDefinitions="*,Auto" Margin="16">
-        <ScrollViewer Grid.Row="0">
-            <StackPanel Spacing="6">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
 
-                <TextBlock Text="General" FontWeight="Bold" Margin="0,0,0,2"/>
-                <TextBlock Text="Source root folder"/>
-                <TextBox Text="{Binding SourceRootFolder}"/>
-                <TextBlock Text="Default source namespace"/>
-                <TextBox Text="{Binding DefaultSourceNamespace}"/>
+        <TextBlock Grid.Row="0" Classes="h1" Text="Settings" Margin="2,0,0,14"/>
 
-                <TextBlock Text="Bitbucket" FontWeight="Bold" Margin="0,12,0,2"/>
-                <TextBlock Text="Workspace"/>
-                <TextBox Text="{Binding BitbucketWorkspace}"/>
-                <TextBlock Text="Username"/>
-                <TextBox Text="{Binding BitbucketUsername}"/>
-                <TextBlock Text="App password / access token"/>
-                <TextBox Text="{Binding BitbucketAppPassword}" PasswordChar="•"/>
-                <TextBlock Text="Project key (optional)"/>
-                <TextBox Text="{Binding BitbucketProjectKey}"/>
-                <CheckBox Content="Create repositories as private" IsChecked="{Binding BitbucketPrivate}"/>
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="14">
 
-                <TextBlock Text="Updates (GitHub Releases)" FontWeight="Bold" Margin="0,12,0,2"/>
-                <TextBlock Text="GitHub owner"/>
-                <TextBox Text="{Binding GitHubOwner}"/>
-                <TextBlock Text="GitHub repository"/>
-                <TextBox Text="{Binding GitHubRepo}"/>
-                <CheckBox Content="Check for updates on startup" IsChecked="{Binding CheckUpdatesOnStartup}"/>
+                <Border Classes="card">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="section" Text="GENERAL"/>
+                        <TextBlock Classes="label" Text="Source root folder"/>
+                        <TextBox Text="{Binding SourceRootFolder}"/>
+                        <TextBlock Classes="label" Text="Default source namespace"/>
+                        <TextBox Text="{Binding DefaultSourceNamespace}"/>
+                    </StackPanel>
+                </Border>
 
-                <TextBlock Text="Database backup (optional)" FontWeight="Bold" Margin="0,12,0,2"/>
-                <CheckBox Content="Enable MySQL backup step" IsChecked="{Binding DbEnabled}"/>
-                <TextBlock Text="DB username"/>
-                <TextBox Text="{Binding DbUsername}"/>
-                <TextBlock Text="DB password"/>
-                <TextBox Text="{Binding DbPassword}" PasswordChar="•"/>
-                <TextBlock Text="Database name"/>
-                <TextBox Text="{Binding DbName}"/>
-                <TextBlock Text="Port"/>
-                <TextBox Text="{Binding DbPort}"/>
-                <TextBlock Text="Backup folder"/>
-                <TextBox Text="{Binding DbBackupFolder}"/>
-                <TextBlock Text="Tables to exclude from dump data (comma-separated)"/>
-                <TextBox Text="{Binding DbTablesToClear}"/>
-                <TextBlock Text="These tables keep their schema but no rows in the backup. The live database is never modified. Connection host/IP is read from the source's bitbucket-pipelines.yml."
-                           TextWrapping="Wrap" Opacity="0.7" FontSize="11"/>
+                <Border Classes="card">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="section" Text="BITBUCKET"/>
+                        <TextBlock Classes="label" Text="Workspace"/>
+                        <TextBox Text="{Binding BitbucketWorkspace}"/>
+                        <TextBlock Classes="label" Text="Username"/>
+                        <TextBox Text="{Binding BitbucketUsername}"/>
+                        <TextBlock Classes="label" Text="App password / access token"/>
+                        <TextBox Text="{Binding BitbucketAppPassword}" PasswordChar="•"/>
+                        <TextBlock Classes="label" Text="Project key (optional)"/>
+                        <TextBox Text="{Binding BitbucketProjectKey}"/>
+                        <CheckBox Content="Create repositories as private" IsChecked="{Binding BitbucketPrivate}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="card">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="section" Text="UPDATES (GITHUB RELEASES)"/>
+                        <TextBlock Classes="label" Text="GitHub owner"/>
+                        <TextBox Text="{Binding GitHubOwner}"/>
+                        <TextBlock Classes="label" Text="GitHub repository"/>
+                        <TextBox Text="{Binding GitHubRepo}"/>
+                        <CheckBox Content="Check for updates on startup" IsChecked="{Binding CheckUpdatesOnStartup}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="card">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="section" Text="DATABASE BACKUP (OPTIONAL)"/>
+                        <CheckBox Content="Enable MySQL backup step" IsChecked="{Binding DbEnabled}"/>
+                        <TextBlock Classes="label" Text="DB username"/>
+                        <TextBox Text="{Binding DbUsername}"/>
+                        <TextBlock Classes="label" Text="DB password"/>
+                        <TextBox Text="{Binding DbPassword}" PasswordChar="•"/>
+                        <TextBlock Classes="label" Text="Default database name (overridable per run)"/>
+                        <TextBox Text="{Binding DbName}"/>
+                        <TextBlock Classes="label" Text="Port"/>
+                        <TextBox Text="{Binding DbPort}"/>
+                        <TextBlock Classes="label" Text="Backup folder"/>
+                        <TextBox Text="{Binding DbBackupFolder}"/>
+                        <TextBlock Classes="label" Text="Tables to exclude from dump data (comma-separated)"/>
+                        <TextBox Text="{Binding DbTablesToClear}"/>
+                        <TextBlock TextWrapping="Wrap" Opacity="0.7" FontSize="11" Margin="0,2,0,0"
+                                   Text="These tables keep their schema but no rows in the backup. The live database is never modified. Connection host/IP is read from the source's bitbucket-pipelines.yml."/>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
-            <Button Content="Save" Click="OnSave" Padding="16,6" FontWeight="Bold"/>
-            <Button Content="Cancel" Click="OnCancel" Padding="16,6"/>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,14,0,0">
+            <Button Classes="primary" Content="Save" Click="OnSave"/>
+            <Button Classes="ghost" Content="Cancel" Click="OnCancel"/>
         </StackPanel>
     </Grid>
 </Window>

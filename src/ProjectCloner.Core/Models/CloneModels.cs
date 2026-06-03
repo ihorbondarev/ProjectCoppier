@@ -19,6 +19,9 @@ public sealed class CloneRequest
     /// <summary>When true, attempt the optional MySQL backup step (non-fatal).</summary>
     public bool BackupDatabase { get; init; }
 
+    /// <summary>Per-run database name to back up. When null/empty, the default from settings is used.</summary>
+    public string? DatabaseName { get; init; }
+
     /// <summary>Repository slug for the new Bitbucket repo. When null, derived from the target namespace.</summary>
     public string? BitbucketRepoSlug { get; init; }
 
