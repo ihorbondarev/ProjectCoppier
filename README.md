@@ -47,6 +47,10 @@ Open **Settings…** in the app. Settings are stored as JSON in your user profil
 (`%APPDATA%/ProjectCloner/settings.json` on Windows, `~/.config/ProjectCloner/settings.json`
 on macOS/Linux) and are **never** committed.
 
+- **SSH private key** (optional): path to the key used for git over SSH (the source `git pull`).
+  Needed when the source remote is an `git@…` URL and the app can't reach your ssh-agent — common
+  when the app is launched from Finder rather than a terminal. git is then invoked with
+  `GIT_SSH_COMMAND="ssh -i <key> -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"`.
 - **Bitbucket**: workspace, username, and an **App Password** (Bitbucket → Personal settings →
   App passwords) or repository access token with `repository:admin`/write scope. Used to create the
   repo and push.

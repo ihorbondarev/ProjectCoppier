@@ -6,6 +6,9 @@ public sealed class AppSettings
     public string SourceRootFolder { get; set; } = string.Empty;
     public string DefaultSourceNamespace { get; set; } = string.Empty;
 
+    /// <summary>Optional path to a private SSH key used for git over SSH (e.g. the source pull). Empty = git defaults.</summary>
+    public string SshKeyPath { get; set; } = string.Empty;
+
     public BitbucketSettings Bitbucket { get; set; } = new();
     public UpdateSettings Update { get; set; } = new();
     public DatabaseSettings Database { get; set; } = new();

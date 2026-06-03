@@ -10,7 +10,7 @@ public interface IGitService
     Task<string> GetCurrentBranchAsync(string repoPath, CancellationToken ct = default);
 
     Task<ProcessResult> CheckoutAsync(string repoPath, string branch, IProgress<ProgressReport>? log = null, CancellationToken ct = default);
-    Task<ProcessResult> PullAsync(string repoPath, IProgress<ProgressReport>? log = null, CancellationToken ct = default);
+    Task<ProcessResult> PullAsync(string repoPath, IReadOnlyDictionary<string, string>? env = null, IProgress<ProgressReport>? log = null, CancellationToken ct = default);
     Task<ProcessResult> ResetHardAsync(string repoPath, IProgress<ProgressReport>? log = null, CancellationToken ct = default);
     Task<ProcessResult> CleanAsync(string repoPath, IProgress<ProgressReport>? log = null, CancellationToken ct = default);
 

@@ -15,6 +15,7 @@ public partial class SettingsViewModel : ObservableObject
 
         SourceRootFolder = _settings.SourceRootFolder;
         DefaultSourceNamespace = _settings.DefaultSourceNamespace;
+        SshKeyPath = _settings.SshKeyPath;
 
         BitbucketWorkspace = _settings.Bitbucket.Workspace;
         BitbucketUsername = _settings.Bitbucket.Username;
@@ -37,6 +38,7 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty] private string _sourceRootFolder = string.Empty;
     [ObservableProperty] private string _defaultSourceNamespace = string.Empty;
+    [ObservableProperty] private string _sshKeyPath = string.Empty;
 
     [ObservableProperty] private string _bitbucketWorkspace = string.Empty;
     [ObservableProperty] private string _bitbucketUsername = string.Empty;
@@ -60,6 +62,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         _settings.SourceRootFolder = SourceRootFolder.Trim();
         _settings.DefaultSourceNamespace = DefaultSourceNamespace.Trim();
+        _settings.SshKeyPath = SshKeyPath.Trim();
 
         _settings.Bitbucket.Workspace = BitbucketWorkspace.Trim();
         _settings.Bitbucket.Username = BitbucketUsername.Trim();

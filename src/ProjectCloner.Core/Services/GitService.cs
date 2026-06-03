@@ -13,6 +13,9 @@ public sealed class GitService : IGitService
     private Task<ProcessResult> Git(string repoPath, IProgress<ProgressReport>? log, CancellationToken ct, params string[] args)
         => _runner.RunAsync("git", args, repoPath, onOutput: line => log.Info(line), cancellationToken: ct);
 
+    private Task<ProcessResult> Git(string repoPath, IReadOnlyDictionary<string, string>? env, IProgress<ProgressReport>? log, CancellationToken ct, params string[] args)
+        => _runner.RunAsync("git", args, repoPath, environment: env, onOutput: line => log.Info(line), cancellationToken: ct);
+
     public async Task<bool> IsRepositoryAsync(string path, CancellationToken ct = default)
     {
         if (!Directory.Exists(path)) return false;
@@ -35,8 +38,8 @@ public sealed class GitService : IGitService
     public Task<ProcessResult> CheckoutAsync(string repoPath, string branch, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
         => Git(repoPath, log, ct, "checkout", branch);
 
-    public Task<ProcessResult> PullAsync(string repoPath, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
-        => Git(repoPath, log, ct, "pull", "--ff-only");
+    public Task<ProcessResult> PullAsync(string repoPath, IReadOnlyDictionary<string, string>? env = null, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
+        => Git(repoPath, env, log, ct, "pull", "--ff-only");
 
     public Task<ProcessResult> ResetHardAsync(string repoPath, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
         => Git(repoPath, log, ct, "reset", "--hard");

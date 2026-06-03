@@ -65,7 +65,7 @@ public sealed class CloneOrchestrator
             log.Step("2/7 Updating source (checkout master + pull)…");
             var checkout = await _git.CheckoutAsync(request.SourcePath, "master", log, ct);
             if (!checkout.Success) return Fail(result, $"git checkout master failed: {checkout.Combined}", log);
-            var pull = await _git.PullAsync(request.SourcePath, log, ct);
+            var pull = await _git.PullAsync(request.SourcePath, BuildGitEnv(settings), log, ct);
             if (!pull.Success) return Fail(result, $"git pull failed: {pull.Combined}", log);
 
             // --- 3. copy with namespace replacement (excludes .git, node_modules, bin, obj) ---
@@ -154,6 +154,24 @@ public sealed class CloneOrchestrator
         var slug = sb.ToString().Trim('-');
         while (slug.Contains("--")) slug = slug.Replace("--", "-");
         return string.IsNullOrEmpty(slug) ? "repository" : slug;
+    }
+
+    /// <summary>
+    /// Builds the environment for git operations over SSH. Always relaxes first-connection host-key
+    /// checking; when an SSH key path is configured, forces git to use exactly that key.
+    /// </summary>
+    private static IReadOnlyDictionary<string, string> BuildGitEnv(AppSettings settings)
+    {
+        var ssh = "ssh -o StrictHostKeyChecking=accept-new";
+        if (!string.IsNullOrWhiteSpace(settings.SshKeyPath))
+        {
+            var keyPath = settings.SshKeyPath.Trim();
+            if (keyPath.StartsWith('~'))
+                keyPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + keyPath[1..];
+            keyPath = keyPath.Replace('\\', '/'); // forward slashes are safe for ssh on all platforms
+            ssh += $" -i \"{keyPath}\" -o IdentitiesOnly=yes";
+        }
+        return new Dictionary<string, string> { ["GIT_SSH_COMMAND"] = ssh };
     }
 
     /// <summary>Builds a one-shot authenticated push URL so credentials are never stored in .git/config.</summary>

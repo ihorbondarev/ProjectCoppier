@@ -23,6 +23,12 @@
                         <TextBox Text="{Binding SourceRootFolder}"/>
                         <TextBlock Classes="label" Text="Default source namespace"/>
                         <TextBox Text="{Binding DefaultSourceNamespace}"/>
+                        <TextBlock Classes="label" Text="SSH private key (for git over SSH)"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Text="{Binding SshKeyPath}"
+                                     PlaceholderText="e.g. ~/.ssh/id_ed25519 — leave empty to use git defaults"/>
+                            <Button Grid.Column="1" Classes="ghost" Content="Browse…" Click="OnBrowseSshKey" Margin="8,0,0,0"/>
+                        </Grid>
                     </StackPanel>
                 </Border>
 

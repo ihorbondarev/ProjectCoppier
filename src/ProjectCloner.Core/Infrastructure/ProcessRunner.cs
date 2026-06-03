@@ -19,7 +19,7 @@ public sealed class ProcessRunner
         string fileName,
         IReadOnlyList<string> arguments,
         string? workingDirectory = null,
-        IDictionary<string, string>? environment = null,
+        IReadOnlyDictionary<string, string>? environment = null,
         Action<string>? onOutput = null,
         CancellationToken cancellationToken = default)
     {
