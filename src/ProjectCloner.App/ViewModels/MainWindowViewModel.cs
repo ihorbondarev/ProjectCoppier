@@ -15,6 +15,7 @@ namespace ProjectCloner.App.ViewModels;
 public partial class MainWindowViewModel : ObservableObject
 {
     private readonly CloneOrchestrator _orchestrator;
+    private readonly IDatabaseBackupService _backupService;
     private readonly SettingsStore _settingsStore;
     private readonly IUpdateService _updateService;
     private readonly IProgress<ProgressReport> _progress;
@@ -22,9 +23,11 @@ public partial class MainWindowViewModel : ObservableObject
     private AppSettings _settings;
     private CancellationTokenSource? _cts;
 
-    public MainWindowViewModel(CloneOrchestrator orchestrator, SettingsStore settingsStore, IUpdateService updateService)
+    public MainWindowViewModel(CloneOrchestrator orchestrator, IDatabaseBackupService backupService,
+        SettingsStore settingsStore, IUpdateService updateService)
     {
         _orchestrator = orchestrator;
+        _backupService = backupService;
         _settingsStore = settingsStore;
         _updateService = updateService;
         _settings = settingsStore.Load();
@@ -43,11 +46,11 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _targetNamespace = string.Empty;
     [ObservableProperty] private bool _dryRun = true;
     [ObservableProperty] private bool _runBuilds = true;
-    [ObservableProperty] private bool _backupDatabase;
     [ObservableProperty] private string _databaseName = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CloneCommand))]
+    [NotifyCanExecuteChangedFor(nameof(BackupDatabaseCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     private bool _isBusy;
 
@@ -89,9 +92,7 @@ public partial class MainWindowViewModel : ObservableObject
             SourceNamespace = SourceNamespace.Trim(),
             TargetNamespace = string.IsNullOrWhiteSpace(TargetNamespace) ? null : TargetNamespace.Trim(),
             DryRun = DryRun,
-            RunBuilds = RunBuilds,
-            BackupDatabase = BackupDatabase,
-            DatabaseName = string.IsNullOrWhiteSpace(DatabaseName) ? null : DatabaseName.Trim()
+            RunBuilds = RunBuilds
         };
 
         IsBusy = true;
@@ -124,6 +125,47 @@ public partial class MainWindowViewModel : ObservableObject
     {
         _cts?.Cancel();
         Status = "Cancelling…";
+    }
+
+    /// <summary>
+    /// Standalone MySQL backup — independent of the clone flow. Lets you run it while connected to a
+    /// VPN, separately from git operations (which run without the VPN).
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanClone))]
+    private async Task BackupDatabaseAsync()
+    {
+        Log.Clear();
+
+        if (string.IsNullOrWhiteSpace(SourcePath))
+        {
+            _progress.Report(ProgressReport.Error("Source project path is required (its pipeline file holds the DB host)."));
+            return;
+        }
+
+        IsBusy = true;
+        Status = "Backing up database…";
+        _cts = new CancellationTokenSource();
+        try
+        {
+            var ok = await _backupService.TryBackupAsync(
+                SourcePath.Trim(),
+                _settings.Database,
+                string.IsNullOrWhiteSpace(DatabaseName) ? null : DatabaseName.Trim(),
+                _progress,
+                _cts.Token);
+            Status = ok ? "Database backup complete." : "Database backup skipped (see log).";
+        }
+        catch (Exception ex)
+        {
+            _progress.Report(ProgressReport.Error(ex.Message));
+            Status = "Backup failed";
+        }
+        finally
+        {
+            IsBusy = false;
+            _cts?.Dispose();
+            _cts = null;
+        }
     }
 
     [RelayCommand]

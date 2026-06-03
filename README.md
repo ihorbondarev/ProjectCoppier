@@ -76,12 +76,15 @@ them to a GitHub Release.
 git tag v0.2.0 && git push origin v0.2.0   # triggers the release workflow
 ```
 
-## Optional: MySQL backup
+## Optional: MySQL backup (separate action)
 
-Tick **Backup database** to dump the source site's MySQL database before the pipeline file is removed.
+The **Database backup** card runs **independently of cloning** — use the *Run backup now* button.
+This keeps git and the database on separate network paths: clone over git **without** a VPN, then
+run the backup **with** the VPN connected (in any order).
 
+- It uses the **Source project** path above (to read the host) and the **Database name** field on the card.
 - The DB **host/IP is read from the source's `bitbucket-pipelines.yml`** (first IPv4 found); the
-  remaining credentials (user, password, database, port) come from Settings.
+  remaining credentials (user, password, port) come from Settings.
 - The configured "tables to exclude" keep their **schema** in the dump but **no rows** — implemented
   with `mysqldump --ignore-table` for the data plus a `--no-data` pass for their structure. The
   **live database is never modified.**

@@ -9,7 +9,7 @@
         Width="860" Height="680" MinWidth="680" MinHeight="520"
         Title="ProjectCloner">
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="20">
 
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="2,0,2,16">
@@ -50,14 +50,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="22">
                     <CheckBox Content="Dry run (no Bitbucket / push)" IsChecked="{Binding DryRun}"/>
                     <CheckBox Content="Run build gate" IsChecked="{Binding RunBuilds}"/>
-                    <CheckBox Content="Backup database" IsChecked="{Binding BackupDatabase}"/>
                 </StackPanel>
-
-                <Grid ColumnDefinitions="150,*" IsVisible="{Binding BackupDatabase}">
-                    <TextBlock Grid.Column="0" Classes="label" Text="Database name"/>
-                    <TextBox Grid.Column="1" Text="{Binding DatabaseName}"
-                             PlaceholderText="MySQL database to back up (host is read from the pipeline file)"/>
-                </Grid>
 
                 <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
                     <Button Classes="primary" Content="Clone &amp; Push" Command="{Binding CloneCommand}"/>
@@ -68,8 +61,24 @@
             </StackPanel>
         </Border>
 
+        <!-- Database backup card (independent of clone — run while on VPN) -->
+        <Border Grid.Row="2" Classes="card" Margin="0,14,0,0">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="section" Text="DATABASE BACKUP  ·  RUN SEPARATELY (VPN)"/>
+                <Grid ColumnDefinitions="150,*,Auto">
+                    <TextBlock Grid.Column="0" Classes="label" Text="Database name"/>
+                    <TextBox Grid.Column="1" Text="{Binding DatabaseName}"
+                             PlaceholderText="MySQL database to back up (host is read from the source's pipeline file)"/>
+                    <Button Grid.Column="2" Classes="primary" Content="Run backup now"
+                            Command="{Binding BackupDatabaseCommand}" Margin="8,0,0,0"/>
+                </Grid>
+                <TextBlock Classes="subtitle" TextWrapping="Wrap"
+                           Text="Independent of cloning: clone over git without the VPN, then run this with the VPN connected. Uses the Source project path above and the DB credentials from Settings."/>
+            </StackPanel>
+        </Border>
+
         <!-- Log card -->
-        <Border Grid.Row="2" Classes="card" Margin="0,14,0,0" Padding="0">
+        <Border Grid.Row="3" Classes="card" Margin="0,14,0,0" Padding="0">
             <DockPanel>
                 <Border DockPanel.Dock="Top" Padding="16,12" BorderBrush="{StaticResource CardBorder}" BorderThickness="0,0,0,1">
                     <TextBlock Classes="section" Text="OUTPUT LOG"/>
@@ -91,7 +100,7 @@
         </Border>
 
         <!-- Status bar -->
-        <Border Grid.Row="3" Margin="0,12,0,0" Padding="14,8" CornerRadius="6"
+        <Border Grid.Row="4" Margin="0,12,0,0" Padding="14,8" CornerRadius="6"
                 Background="{StaticResource CardBg}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Ellipse Width="8" Height="8" VerticalAlignment="Center"
