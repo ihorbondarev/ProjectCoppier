@@ -88,7 +88,9 @@ run the backup **with** the VPN connected (in any order).
 - The configured "tables to exclude" keep their **schema** in the dump but **no rows** — implemented
   with `mysqldump --ignore-table` for the data plus a `--no-data` pass for their structure. The
   **live database is never modified.**
-- Requires `mysqldump` on `PATH`. The step is **non-fatal**: a missing tool, a missing host, or any
+- Requires `mysqldump`. It is auto-detected on `PATH` and in common Homebrew/MySQL locations
+  (e.g. `/opt/homebrew/opt/mysql-client/bin`); if your install is elsewhere, set its full path in
+  **Settings → Database backup**. The step is **non-fatal**: a missing tool, a missing host, or any
   error is logged as a warning and the clone continues.
 
 Backups are written to the configured folder (or a temp folder) as `{database}_{host}.sql`.

@@ -33,6 +33,7 @@ public partial class SettingsViewModel : ObservableObject
         DbName = _settings.Database.DatabaseName;
         DbPort = _settings.Database.Port;
         DbBackupFolder = _settings.Database.BackupFolder;
+        DbMysqldumpPath = _settings.Database.MysqldumpPath;
         DbTablesToClear = string.Join(", ", _settings.Database.TablesToClear);
     }
 
@@ -56,6 +57,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _dbName = string.Empty;
     [ObservableProperty] private int _dbPort = 3306;
     [ObservableProperty] private string _dbBackupFolder = string.Empty;
+    [ObservableProperty] private string _dbMysqldumpPath = string.Empty;
     [ObservableProperty] private string _dbTablesToClear = string.Empty;
 
     public void Save()
@@ -80,6 +82,7 @@ public partial class SettingsViewModel : ObservableObject
         _settings.Database.DatabaseName = DbName.Trim();
         _settings.Database.Port = DbPort;
         _settings.Database.BackupFolder = DbBackupFolder.Trim();
+        _settings.Database.MysqldumpPath = DbMysqldumpPath.Trim();
         _settings.Database.TablesToClear = DbTablesToClear
             .Split(new[] { ',', ';', '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries)
             .ToList();

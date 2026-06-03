@@ -44,6 +44,9 @@ public sealed class DatabaseSettings
     public int Port { get; set; } = 3306;
     public string BackupFolder { get; set; } = string.Empty;
 
+    /// <summary>Optional explicit path to the <c>mysqldump</c> executable. Empty = auto-detect (PATH + common dirs).</summary>
+    public string MysqldumpPath { get; set; } = string.Empty;
+
     /// <summary>Tables whose <i>data</i> is excluded from the dump (schema kept, rows dropped).</summary>
     public List<string> TablesToClear { get; set; } = new();
 }

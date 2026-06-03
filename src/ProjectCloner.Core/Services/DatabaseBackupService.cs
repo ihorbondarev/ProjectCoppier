@@ -73,6 +73,16 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
             log.Info($"Backup folder: {backupFolder}");
             var outFile = Path.Combine(backupFolder, $"{databaseName}_{host}.sql");
 
+            // Resolve mysqldump explicitly — a GUI app's PATH often misses Homebrew/MySQL locations.
+            var mysqldump = ResolveMysqldump(settings);
+            if (mysqldump is null)
+            {
+                log.Warning("DB backup skipped: 'mysqldump' was not found. Install the MySQL client tools " +
+                            "(e.g. `brew install mysql-client`) or set its full path in Settings → Database backup.");
+                return false;
+            }
+            log.Info($"Using mysqldump: {mysqldump}");
+
             var env = new Dictionary<string, string> { ["MYSQL_PWD"] = settings.Password };
             var port = settings.Port > 0 ? settings.Port : 3306;
             var tables = settings.TablesToClear.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).ToList();
@@ -88,7 +98,7 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
             dumpArgs.Add(databaseName);
 
             log.Step($"mysqldump → {outFile}");
-            var main = await _runner.RunAsync("mysqldump", dumpArgs, backupFolder, env,
+            var main = await _runner.RunAsync(mysqldump, dumpArgs, backupFolder, env,
                 onOutput: null, cancellationToken: ct);
             if (!main.Success)
             {
@@ -107,7 +117,7 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
                 };
                 schemaArgs.AddRange(tables);
 
-                var schema = await _runner.RunAsync("mysqldump", schemaArgs, backupFolder, env,
+                var schema = await _runner.RunAsync(mysqldump, schemaArgs, backupFolder, env,
                     onOutput: null, cancellationToken: ct);
                 if (schema.Success)
                 {
@@ -131,6 +141,16 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
             log.Warning($"DB backup skipped due to error: {ex.Message}");
             return false;
         }
+    }
+
+    private static string? ResolveMysqldump(DatabaseSettings settings)
+    {
+        if (!string.IsNullOrWhiteSpace(settings.MysqldumpPath))
+        {
+            var explicitPath = PathUtil.Expand(settings.MysqldumpPath);
+            return File.Exists(explicitPath) ? explicitPath : null;
+        }
+        return ExecutableResolver.Resolve("mysqldump", ExecutableResolver.CommonMysqlClientDirs());
     }
 
     internal static string? ExtractHost(string pipelineContent)

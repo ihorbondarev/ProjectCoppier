@@ -72,6 +72,9 @@
                         <TextBox Text="{Binding DbPort}"/>
                         <TextBlock Classes="label" Text="Backup folder"/>
                         <TextBox Text="{Binding DbBackupFolder}"/>
+                        <TextBlock Classes="label" Text="mysqldump path (optional — auto-detected if empty)"/>
+                        <TextBox Text="{Binding DbMysqldumpPath}"
+                                 PlaceholderText="e.g. /opt/homebrew/bin/mysqldump"/>
                         <TextBlock Classes="label" Text="Tables to exclude from dump data (comma-separated)"/>
                         <TextBox Text="{Binding DbTablesToClear}"/>
                         <TextBlock TextWrapping="Wrap" Opacity="0.7" FontSize="11" Margin="0,2,0,0"

@@ -54,8 +54,17 @@ public sealed class ProcessRunner
             onOutput?.Invoke(e.Data);
         };
 
-        if (!process.Start())
-            throw new InvalidOperationException($"Failed to start process: {fileName}");
+        try
+        {
+            if (!process.Start())
+                throw new InvalidOperationException($"Failed to start process: {fileName}");
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // Most common cause: the executable is not installed or not on this process's PATH.
+            throw new InvalidOperationException(
+                $"Could not start '{fileName}'. Make sure it is installed and available on PATH ({ex.Message}).", ex);
+        }
 
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
