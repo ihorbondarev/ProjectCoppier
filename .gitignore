@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+publish/
+*.user
+
+# Rider / VS / VS Code
+.idea/
+.vs/
+.vscode/
+*.suo
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local secrets / settings (the app stores settings in the user profile, never in-repo)
+settings.json
+*.local.json

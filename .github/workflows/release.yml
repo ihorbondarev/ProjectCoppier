@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid: [osx-arm64, osx-x64, win-x64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Resolve version from tag
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish ${{ matrix.rid }}
+        run: |
+          dotnet publish src/ProjectCloner.App/ProjectCloner.App.csproj \
+            -c Release -r ${{ matrix.rid }} --self-contained true \
+            -p:Version=${{ steps.ver.outputs.version }} \
+            -p:PublishSingleFile=false \
+            -o publish/${{ matrix.rid }}
+
+      - name: Zip artifact
+        run: |
+          cd publish/${{ matrix.rid }}
+          zip -r "../../ProjectCloner-${{ matrix.rid }}.zip" .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProjectCloner-${{ matrix.rid }}
+          path: ProjectCloner-${{ matrix.rid }}.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          generate_release_notes: true
