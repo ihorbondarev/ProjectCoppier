@@ -35,6 +35,23 @@ public sealed class GitService : IGitService
         return r.Success ? r.StdOut.Trim() : string.Empty;
     }
 
+    public async Task<string> GetBranchAsync(string repoPath, CancellationToken ct = default)
+    {
+        // symbolic-ref reads what HEAD points at rather than resolving it to a commit, so it still
+        // answers in a repository that has no commits yet (rev-parse fails there).
+        var r = await _runner.RunAsync("git", ["symbolic-ref", "--short", "HEAD"], repoPath, cancellationToken: ct);
+        if (r.Success && !string.IsNullOrWhiteSpace(r.StdOut)) return r.StdOut.Trim();
+
+        var fallback = await GetCurrentBranchAsync(repoPath, ct);
+        return string.IsNullOrWhiteSpace(fallback) || fallback == "HEAD" ? "master" : fallback;
+    }
+
+    public async Task<string?> GetRemoteUrlAsync(string repoPath, string remote, CancellationToken ct = default)
+    {
+        var r = await _runner.RunAsync("git", ["remote", "get-url", remote], repoPath, cancellationToken: ct);
+        return r.Success && !string.IsNullOrWhiteSpace(r.StdOut) ? r.StdOut.Trim() : null;
+    }
+
     public Task<ProcessResult> CheckoutAsync(string repoPath, string branch, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
         => Git(repoPath, log, ct, "checkout", branch);
 
@@ -47,7 +64,7 @@ public sealed class GitService : IGitService
     public Task<ProcessResult> CleanAsync(string repoPath, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
         => Git(repoPath, log, ct, "clean", "-fdx");
 
-    public async Task InitFreshAsync(string repoPath, string commitMessage, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
+    public async Task InitFreshAsync(string repoPath, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
     {
         var gitPath = Path.Combine(repoPath, ".git");
         if (Directory.Exists(gitPath)) ForceDeleteDirectory(gitPath);
@@ -55,7 +72,10 @@ public sealed class GitService : IGitService
 
         var init = await Git(repoPath, log, ct, "init", "-b", "master");
         if (!init.Success) throw new InvalidOperationException($"git init failed: {init.Combined}");
+    }
 
+    public async Task CommitAllAsync(string repoPath, string commitMessage, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
+    {
         var add = await Git(repoPath, log, ct, "add", "-A");
         if (!add.Success) throw new InvalidOperationException($"git add failed: {add.Combined}");
 
@@ -69,8 +89,9 @@ public sealed class GitService : IGitService
     public Task<ProcessResult> AddRemoteAsync(string repoPath, string name, string url, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
         => Git(repoPath, log, ct, "remote", "add", name, url);
 
-    public Task<ProcessResult> PushAsync(string repoPath, string urlOrRemote, string branch, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
-        => Git(repoPath, log, ct, "push", urlOrRemote, $"{branch}:{branch}");
+    public Task<ProcessResult> PushAsync(string repoPath, string urlOrRemote, string branch,
+        IReadOnlyDictionary<string, string>? env = null, IProgress<ProgressReport>? log = null, CancellationToken ct = default)
+        => Git(repoPath, env, log, ct, "push", urlOrRemote, $"{branch}:{branch}");
 
     private static void ForceDeleteDirectory(string path)
     {

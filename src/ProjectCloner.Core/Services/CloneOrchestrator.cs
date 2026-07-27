@@ -10,12 +10,28 @@ namespace ProjectCloner.Core.Services;
 /// 1) verify source is a clean git repo, 2) checkout master + pull, 3) copy with namespace replace,
 /// 4) force clean master in the copy, 5) remove bitbucket-pipelines.yml, 6) fresh git init,
 /// 7) build gate (React + .NET), 8) create Bitbucket repo + push.
+///
+/// The target may also be a folder holding a freshly cloned, still-empty Bitbucket repository. That
+/// repo is then adopted rather than replaced: its .git and origin survive, and step 7 pushes to it
+/// instead of creating a second repository.
 /// </summary>
 public sealed class CloneOrchestrator
 {
+    /// <summary>
+    /// What a newly created Bitbucket repository may legitimately contain when it is cloned. Anything
+    /// beyond this means the folder holds real work, and filling it in would overwrite someone's files.
+    /// </summary>
+    private static readonly HashSet<string> RepositoryScaffold = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".git", ".gitignore", ".gitattributes", ".DS_Store", "Thumbs.db",
+        "README", "README.md", "README.txt", "README.rst",
+        "LICENSE", "LICENSE.md", "LICENSE.txt"
+    };
+
     private readonly IGitService _git;
     private readonly ProjectCopier _copier;
     private readonly PipelineCleaner _cleaner;
+    private readonly GitIgnoreNormalizer _gitIgnore;
     private readonly IBuildRunner _buildRunner;
     private readonly IBitbucketClient _bitbucket;
     private readonly IDatabaseBackupService _backup;
@@ -24,6 +40,7 @@ public sealed class CloneOrchestrator
         IGitService git,
         ProjectCopier copier,
         PipelineCleaner cleaner,
+        GitIgnoreNormalizer gitIgnore,
         IBuildRunner buildRunner,
         IBitbucketClient bitbucket,
         IDatabaseBackupService backup)
@@ -31,6 +48,7 @@ public sealed class CloneOrchestrator
         _git = git;
         _copier = copier;
         _cleaner = cleaner;
+        _gitIgnore = gitIgnore;
         _buildRunner = buildRunner;
         _bitbucket = bitbucket;
         _backup = backup;
@@ -53,10 +71,25 @@ public sealed class CloneOrchestrator
             // --- validations ---
             if (!Directory.Exists(sourcePath))
                 return Fail(result, $"Source path does not exist: {sourcePath}", log);
-            if (Directory.Exists(targetPath) && Directory.EnumerateFileSystemEntries(targetPath).Any())
-                return Fail(result, $"Target already exists and is not empty: {targetPath}", log);
             if (!await _git.IsRepositoryAsync(sourcePath, ct))
                 return Fail(result, "Source is not a git repository.", log);
+
+            // A non-empty target is normally a mistake, but one case is deliberate: the repo was created
+            // on Bitbucket and cloned into the future project folder, and the project goes inside it.
+            var adoptExistingRepo = false;
+            if (Directory.Exists(targetPath) && Directory.EnumerateFileSystemEntries(targetPath).Any())
+            {
+                if (!await _git.IsRepositoryAsync(targetPath, ct))
+                    return Fail(result, $"Target already exists and is not empty: {targetPath}", log);
+
+                var occupied = OccupyingEntries(targetPath);
+                if (occupied.Count > 0)
+                    return Fail(result,
+                        $"Target is a git repository that already holds files ({string.Join(", ", occupied.Take(5))}). " +
+                        "Use an empty folder, or a folder holding a freshly cloned empty repository.", log);
+
+                adoptExistingRepo = true;
+            }
 
             // --- 1. clean working tree (protect uncommitted work) ---
             // This guarantees the source tree equals committed master, so the copy is already clean —
@@ -90,9 +123,21 @@ public sealed class CloneOrchestrator
             log.Step("4/7 Removing bitbucket-pipelines.yml…");
             _cleaner.RemovePipelineFiles(targetPath, log);
 
-            // --- 5. fresh git history ---
-            log.Step("5/7 Initializing fresh git history…");
-            await _git.InitFreshAsync(targetPath, request.CommitMessage, log, ct);
+            // --- 5. git history ---
+            if (adoptExistingRepo)
+            {
+                log.Step("5/7 Committing into the existing repository…");
+            }
+            else
+            {
+                log.Step("5/7 Initializing fresh git history…");
+                await _git.InitFreshAsync(targetPath, log, ct);
+            }
+
+            // Between init and add: the inherited .gitignore decides what the commit contains, and once
+            // staging has run there is no way left to tell which files its rules swallowed.
+            await _gitIgnore.NormalizeAsync(targetPath, log, ct);
+            await _git.CommitAllAsync(targetPath, request.CommitMessage, log, ct);
 
             // --- 6. build gate ---
             if (request.RunBuilds)
@@ -111,23 +156,59 @@ public sealed class CloneOrchestrator
             if (request.DryRun)
             {
                 result.Success = true;
-                log.Success("Dry run complete — Bitbucket repo creation and push were skipped.");
+                log.Success(adoptExistingRepo
+                    ? "Dry run complete — the push to the existing repository was skipped."
+                    : "Dry run complete — Bitbucket repo creation and push were skipped.");
                 return result;
             }
 
-            log.Step("7/7 Creating Bitbucket repo and pushing…");
-            var slug = request.BitbucketRepoSlug ?? Slugify(targetNamespace);
-            var repo = await _bitbucket.CreateRepositoryAsync(settings.Bitbucket, slug, log, ct);
-            result.RepositoryUrl = repo.HtmlUrl;
+            string pushTarget;
+            string branch;
+            IReadOnlyDictionary<string, string>? pushEnv = null;
 
-            await _git.AddRemoteAsync(targetPath, "origin", repo.CloneUrl, log, ct);
+            if (adoptExistingRepo)
+            {
+                log.Step("7/7 Pushing to the existing repository…");
 
-            var pushUrl = BuildAuthenticatedUrl(repo.CloneUrl, settings.Bitbucket);
-            var push = await _git.PushAsync(targetPath, pushUrl, "master", log, ct);
+                var origin = await _git.GetRemoteUrlAsync(targetPath, "origin", ct);
+                if (string.IsNullOrWhiteSpace(origin))
+                    return Fail(result, "The target repository has no 'origin' remote to push to.", log);
+
+                branch = await _git.GetBranchAsync(targetPath, ct);
+                result.RepositoryUrl = StripCredentials(origin);
+
+                if (origin.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                {
+                    pushTarget = BuildAuthenticatedUrl(origin, settings.Bitbucket);
+                }
+                else
+                {
+                    // An SSH remote authenticates through the configured key, exactly like the source pull.
+                    pushTarget = "origin";
+                    pushEnv = BuildGitEnv(settings);
+                }
+
+                log.Info($"Pushing {branch} to {result.RepositoryUrl}");
+            }
+            else
+            {
+                log.Step("7/7 Creating Bitbucket repo and pushing…");
+
+                var slug = request.BitbucketRepoSlug ?? Slugify(targetNamespace);
+                var repo = await _bitbucket.CreateRepositoryAsync(settings.Bitbucket, slug, log, ct);
+                result.RepositoryUrl = repo.HtmlUrl;
+
+                await _git.AddRemoteAsync(targetPath, "origin", repo.CloneUrl, log, ct);
+
+                branch = "master";
+                pushTarget = BuildAuthenticatedUrl(repo.CloneUrl, settings.Bitbucket);
+            }
+
+            var push = await _git.PushAsync(targetPath, pushTarget, branch, pushEnv, log, ct);
             if (!push.Success) return Fail(result, $"git push failed: {push.Combined}", log);
 
             result.Success = true;
-            log.Success($"Done. Repository: {repo.HtmlUrl}");
+            log.Success($"Done. Repository: {result.RepositoryUrl}");
             return result;
         }
         catch (OperationCanceledException)
@@ -180,9 +261,31 @@ public sealed class CloneOrchestrator
     /// <summary>Builds a one-shot authenticated push URL so credentials are never stored in .git/config.</summary>
     private static string BuildAuthenticatedUrl(string cloneUrl, BitbucketSettings settings)
     {
+        // With no credentials configured, git's own helper is a better bet than a "https://:@host" URL.
+        if (string.IsNullOrEmpty(settings.Username) || string.IsNullOrEmpty(settings.AppPassword))
+            return StripCredentials(cloneUrl);
+
         var uri = new Uri(cloneUrl);
         var user = Uri.EscapeDataString(settings.Username);
         var pass = Uri.EscapeDataString(settings.AppPassword);
         return $"{uri.Scheme}://{user}:{pass}@{uri.Host}{uri.PathAndQuery}";
     }
+
+    /// <summary>Drops any userinfo from a URL — a clone URL may already carry it, and it must not be logged.</summary>
+    private static string StripCredentials(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.UserInfo))
+            return url;
+
+        return $"{uri.Scheme}://{uri.Host}{uri.PathAndQuery}";
+    }
+
+    /// <summary>Entries in the target that go beyond what a freshly created, cloned repository holds.</summary>
+    private static IReadOnlyList<string> OccupyingEntries(string targetPath)
+        => Directory.EnumerateFileSystemEntries(targetPath)
+            .Select(Path.GetFileName)
+            .Where(name => name is not null && !RepositoryScaffold.Contains(name))
+            .Select(name => name!)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 }

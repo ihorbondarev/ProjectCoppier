@@ -29,6 +29,7 @@ public partial class App : Application
                 git,
                 new ProjectCopier(),
                 new PipelineCleaner(),
+                new GitIgnoreNormalizer(runner),
                 new BuildRunner(runner),
                 new BitbucketClient(),
                 backupService);
