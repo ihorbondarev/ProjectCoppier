@@ -7,9 +7,9 @@ namespace ProjectCloner.Core.Services;
 
 /// <summary>
 /// Drives the full clone pipeline:
-/// 1) verify source is a clean git repo, 2) checkout master + pull, 3) copy with namespace replace,
-/// 4) force clean master in the copy, 5) remove bitbucket-pipelines.yml, 6) fresh git init,
-/// 7) build gate (React + .NET), 8) create Bitbucket repo + push.
+/// 1) verify source is a clean git repo, 2) pull the branch the source is on, 3) copy with namespace
+/// replace, 4) remove bitbucket-pipelines.yml, 5) fresh git init + .gitignore normalization + commit,
+/// 6) build gate (React + .NET), 7) create Bitbucket repo + push.
 ///
 /// The target may also be a folder holding a freshly cloned, still-empty Bitbucket repository. That
 /// repo is then adopted rather than replaced: its .git and origin survive, and step 7 pushes to it
@@ -92,19 +92,35 @@ public sealed class CloneOrchestrator
             }
 
             // --- 1. clean working tree (protect uncommitted work) ---
-            // This guarantees the source tree equals committed master, so the copy is already clean —
-            // no reset/clean on the copy is needed (and would only fight the namespace replacement).
+            // This guarantees the source tree equals its committed branch tip, so the copy is already
+            // clean — no reset/clean on the copy is needed (and would only fight the namespace replacement).
             log.Step("1/7 Checking source working tree…");
             if (!await _git.IsCleanAsync(sourcePath, ct))
                 return Fail(result,
                     "Source has uncommitted changes. Commit or stash them first — aborted to protect your work.", log);
 
             // --- 2. update source ---
-            log.Step("2/7 Updating source (checkout master + pull)…");
-            var checkout = await _git.CheckoutAsync(sourcePath, "master", log, ct);
-            if (!checkout.Success) return Fail(result, $"git checkout master failed: {checkout.Combined}", log);
-            var pull = await _git.PullAsync(sourcePath, BuildGitEnv(settings), log, ct);
-            if (!pull.Success) return Fail(result, $"git pull failed: {pull.Combined}", log);
+            // The clone is taken from whatever branch the source is on: work that is not on master is
+            // just as valid a starting point, and switching branches under the user would silently
+            // clone something other than what they were looking at.
+            log.Step("2/7 Updating source (pull current branch)…");
+            var sourceBranch = await _git.GetCurrentBranchAsync(sourcePath, ct);
+            if (string.IsNullOrWhiteSpace(sourceBranch) || sourceBranch == "HEAD")
+                return Fail(result,
+                    "Source is not on a branch (detached HEAD). Check out the branch you want to clone first.", log);
+
+            log.Info($"Cloning from branch '{sourceBranch}'.");
+
+            // A local-only branch has nothing to pull, and `pull --ff-only` would fail on it.
+            if (await _git.GetUpstreamAsync(sourcePath, ct) is null)
+            {
+                log.Warning($"Branch '{sourceBranch}' tracks no remote branch — skipping pull, cloning it as it is locally.");
+            }
+            else
+            {
+                var pull = await _git.PullAsync(sourcePath, BuildGitEnv(settings), log, ct);
+                if (!pull.Success) return Fail(result, $"git pull failed: {pull.Combined}", log);
+            }
 
             // --- 3. copy with namespace replacement (excludes .git, node_modules, bin, obj) ---
             log.Step("3/7 Copying project (replacing namespace)…");

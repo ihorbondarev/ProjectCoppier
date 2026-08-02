@@ -6,7 +6,8 @@ clean clone published to a brand-new Bitbucket repository.
 In one run it:
 
 1. Verifies the source git repo is clean (aborts otherwise — your uncommitted work is never touched).
-2. Checks out `master` and pulls the latest changes on the source.
+2. Pulls the latest changes on **the branch the source is currently on** — the branch is never
+   switched, so you clone exactly what you were looking at.
 3. Copies the project into a new folder, **replacing the namespace** in file names and contents
    and regenerating the GUID in `AssemblyInfo` files. `node_modules`, `bin`, `obj` and `.git`
    are never copied.

@@ -53,7 +53,9 @@ See `docs/ARCHITECTURE.md` for the full module map and the clone pipeline.
 ## The clone pipeline (`CloneOrchestrator.RunAsync`, 7 steps)
 
 1. Verify source is a **clean** git repo (abort on uncommitted changes — protects the user's work).
-2. `git checkout master` + `git pull --ff-only` (SSH env applied here).
+2. `git pull --ff-only` on **whatever branch the source is on** (SSH env applied here). The branch is
+   never switched — detached HEAD aborts, and a branch with no upstream skips the pull with a warning
+   instead of failing. Only the *source* branch is free; the clone's own history always starts on `master`.
 3. Copy source → target with **namespace replacement** (`ProjectCopier`); excludes
    `node_modules`, `bin`, `obj`, `.git`, `.svn`, `.vs`; regenerates the GUID in `AssemblyInfo`.
 4. Remove `bitbucket-pipelines.yml` (`PipelineCleaner`).
@@ -65,7 +67,7 @@ See `docs/ARCHITECTURE.md` for the full module map and the clone pipeline.
 7. Create the Bitbucket repo via REST API (`BitbucketClient`) and push (authenticated HTTPS URL).
 
 `DryRun` stops before step 7. Why no `reset --hard` on the copy: step 1 already guarantees the source
-equals committed master, and a reset would *undo* the namespace replacement on tracked files.
+equals its committed branch tip, and a reset would *undo* the namespace replacement on tracked files.
 
 **Adopt mode.** The target may also be a folder holding a freshly cloned, still-empty Bitbucket repo
 (create the repo, clone it into `P0079`, point the app there). Then `.git` and `origin` are kept, step 5

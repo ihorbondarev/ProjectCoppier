@@ -27,7 +27,7 @@ The App's composition root is `src/ProjectCloner.App/App.axaml.cs`
 | `Models/CloneModels.cs` | `CloneRequest`, `CloneResult`, `BuildResult`. |
 | `Config/AppSettings.cs` | Settings DTOs: root, namespace, `SshKeyPath`, `BitbucketSettings`, `UpdateSettings`, `DatabaseSettings`. |
 | `Config/SettingsStore.cs` | Load/save JSON in the user profile (camelCase). Corrupt file ⇒ defaults (never crashes). |
-| `Services/GitService.cs` | git CLI wrappers: `IsRepository/IsClean/GetCurrentBranch/Checkout/Pull/ResetHard/Clean/InitFresh/AddRemote/Push`. `Pull` takes an env dict for `GIT_SSH_COMMAND`. |
+| `Services/GitService.cs` | git CLI wrappers: `IsRepository/IsClean/GetCurrentBranch/GetBranch/GetUpstream/Checkout/Pull/ResetHard/Clean/InitFresh/AddRemote/Push`. `Pull` takes an env dict for `GIT_SSH_COMMAND`; `GetUpstream` answers null for a purely local branch. |
 | `Services/ProjectCopier.cs` | Recursive copy + namespace replace (filenames + text content) + AssemblyInfo GUID regen. Thread-safe (`Parallel.ForEach`, no shared Console). Skips binary extensions and excluded dirs. |
 | `Services/PipelineCleaner.cs` | Find/remove `bitbucket-pipelines.yml`. |
 | `Services/BuildRunner.cs` | Build gate: npm (`npm.cmd` on Windows) for each `package.json` with a `build` script; `dotnet build` for the `.sln` (else root `.csproj`). Skips `node_modules/bin/obj`. |
@@ -54,7 +54,7 @@ RunAsync(request, settings, log, ct)
   expand source/target paths (PathUtil)
   validate: source exists + is a git repo; target empty, or an empty cloned repo → adopt mode
   1. IsClean(source)                         → abort if dirty
-  2. checkout master; pull --ff-only (GIT_SSH_COMMAND)
+  2. current branch (abort on detached HEAD); pull --ff-only if it has an upstream (GIT_SSH_COMMAND)
   3. ProjectCopier.Copy(source→target, replace namespace)
      [optional] DatabaseBackupService (only if request.BackupDatabase; GUI uses the standalone button instead)
   4. PipelineCleaner.RemovePipelineFiles(target)

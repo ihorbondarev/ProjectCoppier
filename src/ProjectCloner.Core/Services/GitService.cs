@@ -46,6 +46,13 @@ public sealed class GitService : IGitService
         return string.IsNullOrWhiteSpace(fallback) || fallback == "HEAD" ? "master" : fallback;
     }
 
+    public async Task<string?> GetUpstreamAsync(string repoPath, CancellationToken ct = default)
+    {
+        var r = await _runner.RunAsync("git",
+            ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], repoPath, cancellationToken: ct);
+        return r.Success && !string.IsNullOrWhiteSpace(r.StdOut) ? r.StdOut.Trim() : null;
+    }
+
     public async Task<string?> GetRemoteUrlAsync(string repoPath, string remote, CancellationToken ct = default)
     {
         var r = await _runner.RunAsync("git", ["remote", "get-url", remote], repoPath, cancellationToken: ct);

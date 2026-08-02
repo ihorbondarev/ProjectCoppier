@@ -15,6 +15,12 @@ public interface IGitService
     /// </summary>
     Task<string> GetBranchAsync(string repoPath, CancellationToken ct = default);
 
+    /// <summary>
+    /// The branch the current one tracks (e.g. <c>origin/feature-x</c>), or null when it tracks nothing —
+    /// a purely local branch, which there is no way and no need to pull.
+    /// </summary>
+    Task<string?> GetUpstreamAsync(string repoPath, CancellationToken ct = default);
+
     /// <summary>The configured URL of <paramref name="remote"/>, or null when it does not exist.</summary>
     Task<string?> GetRemoteUrlAsync(string repoPath, string remote, CancellationToken ct = default);
 
